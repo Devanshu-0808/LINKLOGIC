@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Board</title>
+    <link rel="stylesheet" th:href="@{codemirror-5.65.18/lib/codemirror.css}">
+    <link rel="stylesheet" th:href="@{codemirror-5.65.18/theme/material-darker.css}">
+    <script th:src="@{codemirror-5.65.18/lib/codemirror.js}"></script>
+    <script th:src="@{codemirror-5.65.18/mode/clike/clike.js}"></script>
+    <script th:src="@{codemirror-5.65.18/addon/edit/closebrackets.js}"></script>
+    <script th:src="@{codemirror-5.65.18/mode/python/python.js}"></script>
+    <link rel="stylesheet" th:href="@{codemirror-5.65.18/theme/dracula.css}">
+    <script src="http://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<!--Stompjs allow to connect to stomp broker -->
+<script src="http://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.1/stomp.min.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+    
+      body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+            color: #333;
+            display: flex;
+            height: 100vh;
+        }
+        .container {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            height: 100%;
+        }
+        /* Sidebar */
+        .sidebar {
+            width: 180px;
+            height: 100vh;
+            background-color: #ffffff;
+            border-right: 1px solid #e1e4e8;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .sidebar h2 {
+            color: #0078d4;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+        .sidebar .teacher,
+        .sidebar .students {
+            margin-top: 2px;
+            height: 300px;
+            overflow: auto;
+        }
+       @media(max-height: 687px)
+       {
+            .sidebar .students{
+                height: 180px;
+                overflow: auto;
+            }
+       }
+      
+
+        .sidebar .user {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .sidebar .user span {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background-color: #0078d4;
+            color: white;
+            text-align: center;
+            line-height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+        .sidebar img {
+            width: 100px;
+            height: 100px;
+            display: block;
+            margin: 0 auto 20px auto;
+        }
+        .actions {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            margin-top: auto; /* Push buttons to the bottom */
+        }
+        .actions button {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px 15px;
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+        .actions button:hover {
+            background-color: #005a9e;
+            transform: translateY(-2px);
+        }
+        .actions button:active {
+            background-color: #004578;
+            transform: translateY(0);
+        }
+        /* Doubt Box Button */
+        .open-doubt-box-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: end;
+            background-color: transparent;
+            border: none;
+            font-size: 30px;
+            cursor: pointer;
+            color: #0078d4;
+        }
+        /* Full Screen Div */
+        .full-screen-div {
+            flex-grow: 1;
+            background-color: #f3f4f6;
+            display: flex;
+            
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        .coding-box {
+            width: 97%;
+            height: 110%;
+            display: flex;
+            flex-direction: row; /* Change to row */
+            background-color: #ffffff;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            position: relative; /* Add relative positioning */
+        }
+        .part1, .part2 {
+            width: 50%; /* Set width to 50% */
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .coding-box select, .coding-box textarea, .coding-box input {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        .coding-box textarea {
+            flex-grow: 1;
+            resize: none;
+        }
+        .coding-box button {
+            padding: 10px 15px;
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+            position: absolute; /* Add absolute positioning */
+            bottom: 20px; /* Position at the bottom */
+            right: 20px; /* Position at the right */
+        }
+        .coding-box button:hover {
+            background-color: #005a9e;
+            transform: translateY(-2px);
+        }
+        .coding-box button:active {
+            background-color: #004578;
+            transform: translateY(0);
+        }
+        .coding-box #output {
+            flex-grow: 1;
+            margin-top: 10px;
+            background-color: #f6f8fa;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+            overflow-y: auto;
+        }
+        .coding-box select {
+            appearance: none;
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .coding-box select:hover {
+            background-color: #005a9e;
+        }
+        .coding-box select:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.5);
+        }
+        #codeOutput {
+            border-radius: 6px;
+            background-color: #e5e2e2;
+        }
+        /* Doubt Box */
+        .doubt-box {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: 350px;
+            height: 100vh;
+            background-color: #ffffff;
+            border-left: 1px solid #e1e4e8;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .doubt-box .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .doubt-box .doubt-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
+        }
+        .doubt-box .doubt-input {
+            display: flex;
+            align-items: center;
+        }
+        .doubt-box .doubt-input input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            background-color: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            color: #333;
+            border-radius: 6px;
+            margin-right: 10px;
+        }
+        .doubt-box .doubt-input button {
+            padding: 10px 15px;
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+        .doubt-box .doubt-input button:hover {
+            background-color: #005a9e;
+            transform: translateY(-2px);
+        }
+        .doubt-box .doubt-input button:active {
+            background-color: #004578;
+            transform: translateY(0);
+        }
+        .doubt {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            background-color: #f6f8fa;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+        }
+        .doubt .icon {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background-color: #0078d4;
+            color: white;
+            text-align: center;
+            line-height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        .doubt .text {
+            background-color: #ffffff;
+            padding: 10px;
+            border-radius: 6px;
+            flex-grow: 1;
+            color: #333;
+        }
+        #codeInput{
+           border-radius: 26px;
+           background-color:  #e5e2e2;
+           height: 150px;
+           font-size: 1.5em;
+        }
+        #userInput{
+            font-size: 1.5em;
+            border-radius: 26px;
+            background-color: #F6F8FA;
+            height: 1vh; /* Decrease height */
+            outline: none;
+        }
+        h4{
+            margin-top: 2px;
+            margin-bottom: 2px;
+        }
+        #codeOutput{
+            border-radius: 26px;
+            background-color:#F6F8FA;
+            outline: none;
+            font-size: 1.5em;
+        }
+        .CodeMirror {
+            font-size: 1.5em; /* Increase font size */
+            height: 100%;
+            border-radius: 25px;
+            font-size: 1.5em;
+        }
+        @media (max-width: 1022px) {
+            .coding-box {
+                flex-direction: column; /* Change to column */
+            }
+            .part1, .part2 {
+                width: 100%; /* Set width to 100% */
+                height: 50%;;
+            }
+        
+            #doubtInput{
+                outline: none;
+            }
+            .CodeMirror{
+                font-size: 1em;
+            }
+            #languageSelect {
+                width: 100%; /* Make select box full width */
+                font-size: 1em; /* Adjust font size */
+            }
+        }
+        @media (max-width: 600px) {
+            #languageSelect {
+                font-size: 0.8em; /* Further adjust font size for smaller screens */
+            }
+        }
+        .custom-alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #0078d4;
+            color: white;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+        .notification-count {
+            position: absolute;
+            top: -5px;
+            right: -1px;
+            width: 11px;
+            height: 11px;
+            background: red;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            font-size: 0.3em; /* Adjust font size to fit */
+            display: none; /* Initially hidden */
+        }
+
+
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar with users -->
+        <div class="sidebar">
+            <img th:src="@{image/main.png}" alt="Code Board Logo" class="logo">
+           
+            <div class="students">
+                <h3>Students</h3>
+            </div>
+            <div class="actions">
+                <button id="run">Run Code</button> <!-- Move button here -->
+                <button id="copyRoomId"  class="button">Copy Room Id</button>
+                <button id="leave" class="button">Leave</button>
+            </div>
+        </div>
+
+        <!-- Full Screen Div -->
+        <div class="full-screen-div">
+            <!-- Main Coding Box -->
+            <div class="coding-box">
+                <div class="part1">
+                    <select id="languageSelect">
+                       
+                        <option value="cpp">C++</option>
+                        <option value="java">Java</option>
+                        <option value="python">Python</option>
+                    </select>
+                    <textarea id="codeInput" placeholder="Write your code here..." rows="10"></textarea>
+                </div>
+                <div class="part2">
+                    <h4>Input:</h4>
+                    <textarea id="userInput" placeholder="Provide input here..." rows="2"></textarea>
+                    <h4>Output:</h4>
+                    <textarea id="codeOutput" placeholder="Output will be displayed here..." rows="5" readonly></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Button to open Doubt Box -->
+    <button class="open-doubt-box-btn" onclick="openDoubtBox()">
+        <span class="material-icons">notifications</span>
+        <span id="notificationCount" class="notification-count">0</span>
+    </button>
+
+    <!-- Doubt Box -->
+    <div class="doubt-box" id="doubtBox">
+        <button class="close-btn" onclick="closeDoubtBox()">×</button>
+        <h3>Doubt Box</h3>
+        <div class="doubt-list" id="doubtList"> 
+        </div>
+        <div class="doubt-input">
+            <input type="text" placeholder="Type your doubt..." id="doubtInput">
+            <button id="sendDoubt" class="button" >Send</button>
+        </div>
+    </div>
+
+    <script>
+    var input = document.getElementById("userInput");
+    var output = document.getElementById("codeOutput");
+    var run = document.getElementById("run");
+    var code;
+    const currentUrl = window.location.href;
+        const url = new URL(currentUrl);
+        const username2 = url.searchParams.get("username");
+        const groupId2 = url.searchParams.get("groupId");
+    
+
+    run.addEventListener("click", async function() {
+        code = {
+            code: editor.getValue(),
+            input: input.value,
+            lang: options.value
+        };
+        sendMessageCode();
+        var oData = await fetch("/compile", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(code)
+        });
+        var d = await oData.json();
+        output.value = d.output;
+    });
+
+    var editor = CodeMirror.fromTextArea(document.getElementById("codeInput"), {
+        mode: "text/x-c++src",
+        lineNumbers: true,
+        theme: "material-darker",
+        autoCloseBrackets: true
+    });
+
+    var options = document.getElementById("languageSelect");
+    options.addEventListener("change", function() {
+        if (options.value == "cpp") {
+            editor.setOption("mode", "text/x-c++src");
+        } else if (options.value == "java") {
+            editor.setOption("mode", "text/x-c++src");
+        } else if (options.value == "python") {
+            editor.setOption("mode", "python");
+        }
+    });
+
+    function openDoubtBox() {
+        document.getElementById('doubtBox').style.display = 'flex';
+        // Reset notification count
+        const notificationCount = document.getElementById('notificationCount');
+        notificationCount.textContent = '0';
+        notificationCount.style.display = 'none';
+    }
+
+    function closeDoubtBox() {
+        document.getElementById('doubtBox').style.display = 'none';
+    }
+
+    function addDoubt() {
+        const doubtList = document.getElementById('doubtList');
+        const input = document.getElementById('doubtInput');
+        const doubtText = input.value.trim();
+
+        if (doubtText) {
+            const newDoubt = document.createElement('div');
+            newDoubt.classList.add('doubt');
+            newDoubt.innerHTML = `<div class="icon">${doubtText.charAt(0).toUpperCase()}</div><div class="text">${doubtText}</div>`;
+            doubtList.appendChild(newDoubt);
+            input.value = ''; // Clear input field
+            doubtList.scrollTop = doubtList.scrollHeight; // Scroll to the bottom
+        }
+    }
+
+    function setConnected(connected) {
+    document.getElementById("sendDoubt").disabled =! connected;
+    }
+
+function connect() {
+    var socket = new SockJS('/chat');
+    var socket1=new SockJS('/chat');
+    stompClient = Stomp.over(socket);
+    stompClient1=Stomp.over(socket1);
+    stompClient.connect({}, function(frame) {
+        setConnected(true);
+         stompClient.subscribe(`/topic/messages/${groupId2}` , function(message) {
+            showMessage(JSON.parse(message.body));
+         });
+
+         stompClient.subscribe(`/topic/Codemessages/${groupId2}` , function(message) {
+            showMessageCode(JSON.parse(message.body));
+         });
+        
+         stompClient.subscribe(`/topic/Sidebar/${groupId2}` , function(message) {
+            showsidebar(JSON.parse(message.body));
+         });
+
+         stompClient.subscribe(`/topic/Disconnect/${groupId2}`, function(message) {
+            console.log("Disconnect message received:", message);
+            removeUser(JSON.parse(message.body).username);
+        });
+
+        // Call sendSidebar directly after connection is established
+        sendSidebar();
+    });   
+}
+let check=true;
+const s=new Set();
+//side bar
+function showsidebar(message) {
+    if(!s.has(message.username)){
+    const students = document.querySelector('.students');
+    const student = document.createElement('div');
+    student.classList.add('user');
+    s.add(message.username);
+    student.innerHTML = `<span>${message.username.charAt(0).toUpperCase()+message.username.charAt(1).toUpperCase()}</span> ${message.username}`;
+    students.appendChild(student);
+    if(check){
+      allusers(); 
+      check=false;
+    } 
+}     
+}
+
+function sendSidebar() {
+    fetch("/getusername")
+        .then(response => response.text())
+        .then(data => {
+            var username = data; // Define username here
+            var msg = {
+                username: username
+            };
+            if(!s.has(username)){
+            stompClient.send(`/app/sendSidebar/${groupId2}`, {}, JSON.stringify(msg));
+            }
+        });
+}
+
+window.onload= function() {
+    connect();
+};
+
+
+
+//for code box
+
+ function showMessageCode(message) {
+    input.value = message.input;
+    editor.setValue(message.code);
+    options.value = message.lang;
+    
+};
+
+function sendMessageCode() {
+    var code = {
+        code: editor.getValue(),
+        input: input.value,
+        lang: options.value,
+    };
+    stompClient.send(`/app/sendCodeMessage/${groupId2}`, {}, JSON.stringify(code));
+    
+}
+
+
+
+// for dobut box
+    function showMessage(message) {
+        const doubtList = document.getElementById('doubtList');
+        const newDoubt = document.createElement('div');
+        newDoubt.classList.add('doubt');
+        newDoubt.innerHTML = `<div class="icon" >${message.sender.charAt(0).toUpperCase()+message.sender.charAt(1).toUpperCase()}</div><div class="text">${message.content}</div>`;
+        doubtList.appendChild(newDoubt);
+        doubtList.scrollTop = doubtList.scrollHeight; // Scroll to the bottom
+
+        // Increment notification count for all users except the sender
+        const currentUrl = window.location.href;
+        const url = new URL(currentUrl);
+        const username = url.searchParams.get("username");
+
+        if (message.sender !== username) {
+            const notificationCount = document.getElementById('notificationCount');
+            let count = parseInt(notificationCount.textContent);
+            count++;
+            notificationCount.textContent = count;
+            notificationCount.style.display = 'flex';
+        }
+    }
+
+    function sendMessage(){
+       // Get the full URL
+
+const currentUrl = window.location.href;
+
+// Create a URL object
+const url = new URL(currentUrl);
+
+// Use URLSearchParams to get query parameters
+const username = url.searchParams.get("username");
+
+// Log the username
+console.log(username); // Output: "devanshu"
+        var sender=username;
+        var content=document.getElementById("doubtInput").value;
+       
+        var chatMessage={
+            sender:sender,
+            content:content
+        };
+        stompClient.send(`/app/sendMessage/${groupId2}`, {}, JSON.stringify(chatMessage)); 
+        document.getElementById("doubtInput").value=''; // Corrected this line
+    }
+    
+    document.getElementById("sendDoubt").onclick=sendMessage;
+   
+function removeUser(username) {
+    console.log("Removing user:", username);
+    const students = document.querySelector('.students');
+    const userElements = students.querySelectorAll('.user');
+    userElements.forEach(userElement => {
+        if (userElement.textContent.trim().includes(username)) {
+            students.removeChild(userElement);
+        }
+    });
+    showAlert(`${username} has been disconnected.`);
+    s.delete(username);
+}
+
+//for diconnect
+function disconnect() {
+    if (stompClient !== null) {
+        const currentUrl = window.location.href;
+        const url = new URL(currentUrl);
+        const username = url.searchParams.get("username");
+
+        // Notify other users about the disconnection
+        stompClient.send(`/app/disconnectUser/${groupId2}`, {}, JSON.stringify({ username: username }));
+
+        stompClient.disconnect(() => {
+            showAlert('You have been successfully disconnected.');
+        });
+
+        stompClient = null;
+        history.pushState(null, null, '/');
+        window.location.href = '/';
+    }
+}
+
+document.getElementById("leave").onclick = disconnect;
+
+window.onload = function() {
+    connect();
+    setTimeout(sendSidebar, 150);
+};
+
+
+copyRoomId.onclick = function() {
+    const currentUrl = window.location.href;
+    const url = new URL(currentUrl);
+    const roomId = url.searchParams.get("groupId");
+
+    // Create a temporary input element
+    const tempInput = document.createElement('input');
+    tempInput.value = roomId;
+    document.body.appendChild(tempInput);
+
+    // Select the text and copy it to the clipboard
+    tempInput.select();
+    document.execCommand('copy');
+
+    // Remove the temporary input element
+    document.body.removeChild(tempInput);
+
+    showAlert("Room ID has been copied to the clipboard.");
+}
+
+function showAlert(message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'custom-alert';
+    alertDiv.textContent = message;
+    document.body.appendChild(alertDiv);
+
+    setTimeout(() => {
+        alertDiv.style.opacity = '0';
+        setTimeout(() => {
+            document.body.removeChild(alertDiv);
+        }, 300);
+    }, 1000);
+}
+
+function allusers() {
+    const currentUrl = window.location.href;
+    const url = new URL(currentUrl);
+    const groupId = url.searchParams.get("groupId");
+
+    fetch("/allPrevUsers?groupId=" + groupId)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok ' + response.statusText);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const students = document.querySelector('.students');
+            data.forEach(user => {
+                if( !s.has(user)){
+                    s.add(user);
+                const student = document.createElement('div');
+                student.classList.add('user');
+                student.innerHTML = `<span>${user.charAt(0).toUpperCase() + user.charAt(1).toUpperCase()}</span> ${user}`;
+                students.appendChild(student);
+                }
+            });
+        })
+        .catch(error => {
+            console.error('There was a problem with the fetch operation:', error);
+        });
+}
+
+    </script>
+</body>
+</html>

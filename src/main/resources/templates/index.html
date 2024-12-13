@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkLogic</title>
+    <link rel="stylesheet" th:href="@{css/index.css}">
+</head>
+<body>
+<div class="container">
+    <div class="top-content">
+        <img class="img1" th:src="@{image/main.png}" alt="">
+        <div class="switch">
+            <input type="checkbox" class="switch__input" id="Switch" checked>
+            <label class="switch__label" for="Switch">
+                <span class="switch__indicator"></span>
+                <span class="switch__decoration"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="form_wrap">
+        <h4 class="h4">Enter Room Id</h4>
+        <form method="get" action="/login">
+            <input type="text" id="in1" name="groupId" placeholder="Room Id" required>
+            <input type="text" id="in2" name="username" placeholder="Username"  required >
+ 
+            <div class="createInfo">
+                <button type="button" class="CreateNewinfo">Create Room Id</button>
+            </div>
+            <button type="submit" class="CreateNewBtn">JOIN</button>
+        </form>
+       
+    </div>
+    <div id="alert-container"></div> <!-- Add this line for alerts -->
+</div>
+
+
+<script th:src="@{js/index.js}"></script>
+</body>
+</html>
