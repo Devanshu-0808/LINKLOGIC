@@ -5,6 +5,17 @@
 
 LinkLocal
 
+# Technologies
+
+HTML, 
+CSS, 
+Javacript, 
+Spring Boot , 
+Spring WebSocket, 
+Hibernate, 
+MYSQL, 
+AWS- EC2 , RDS
+
 ## Installation
 
 To install this project, follow these steps:
